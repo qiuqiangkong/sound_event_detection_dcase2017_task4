@@ -26,7 +26,7 @@ dataset_root
 
 The log mel spectrogram of audio clips looks like:
 
-![alt text](appendixes/logmel.png)
+<img src="appendixes/logmel.png" width="600">
 
 ## Run the code
 **0. (Optional) Install dependent packages.**
