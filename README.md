@@ -99,4 +99,4 @@ The following figure shows the audio tagging and sound event detection mean aver
 This codebase is the implementation of our work [1].
 
 ## Cite
-[1] To appear.
+[1] Kong, Qiuqiang, Yong Xu, Wenwu Wang, and Mark D. Plumbley. "Sound Event Detection of Weakly Labelled Data with CNN-Transformer and Automatic Threshold Optimization." arXiv preprint arXiv:1912.04761 (2019).
