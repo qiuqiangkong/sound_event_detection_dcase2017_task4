@@ -22,7 +22,7 @@ def activity_detection(x, thres, low_thres=None, n_smooth=1, n_salt=0):
     Return: list of [bgn, fin]
     """
     
-    locts = np.where(x>thres)[0]
+    locts = np.where(x > thres)[0]
     
     # Find pairs of [bgn, fin]
     bgn_fin_pairs = find_bgn_fin_pairs(locts)
@@ -50,10 +50,10 @@ def find_bgn_fin_pairs(locts):
     else:
         bgns = [locts[0]]
         fins = []
-        for i1 in range(1,len(locts)):
-            if locts[i1]-locts[i1-1]>1:
-                fins.append(locts[i1-1])
-                bgns.append(locts[i1])
+        for i1 in range(1, len(locts)):
+            if locts[i1] - locts[i1 - 1] > 1:
+                fins.append(locts[i1 - 1] + 1)
+                bgns.append(locts[i1] + 1)
         fins.append(locts[-1])
             
     assert len(bgns)==len(fins)
@@ -133,4 +133,3 @@ def remove_salt_noise(bgn_fin_pairs, n_salt):
             new_bgn_fin_pairs.append([bgn, fin])
             
     return new_bgn_fin_pairs
-

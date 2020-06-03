@@ -15,54 +15,6 @@ import config
 from utilities import create_folder, pad_truncate_sequence, float32_to_int16
 
 
-def read_weak_csv(weak_label_csv_path, data_type):
-    """Read weakly labelled ground truth csv file. 
-
-    Args:
-      weak_label_csv_path: str
-      data_type: 'training' | 'testing' | 'evaluation'
-
-    Returns:
-      meta_list: [{'audio_name': 'a.wav', 'labels': ['Train', 'Bus']}
-                  ...]
-    """
-    assert data_type in ['training', 'testing', 'evaluation']
-    
-    if data_type in ['training', 'testing']:
-        with open(weak_label_csv_path, 'r') as f:
-            reader = csv.reader(f, delimiter=',')
-            rows = list(reader)
-            
-    elif data_type in ['evaluation']:
-        with open(weak_label_csv_path, 'r') as f:
-            reader = csv.reader(f, delimiter='\t')
-            rows = list(reader)
-            
-    meta_list = []
-            
-    for row in rows:
-        if data_type in ['training', 'testing']:
-            meta = {
-                'audio_name': 'Y' + row[0] + '_' + row[1] + '_' + row[2] + '.wav', 
-                'labels': re.split(',(?! )', row[3])}
-            meta_list.append(meta)
-        
-        elif data_type in ['evaluation']:
-            audio_name = row[0]
-            name_list = [meta['audio_name'][1 :] for meta in meta_list]
-
-            if audio_name in name_list:
-                n = name_list.index(audio_name)
-                meta_list[n]['labels'].append(row[3])
-            else:
-                meta = {
-                    'audio_name': 'Y{}'.format(row[0]), 
-                    'labels': [row[3]]}
-                meta_list.append(meta)
-
-    return meta_list
-
-
 def get_weak_csv_filename(data_type):
     """Prepare weakly labelled csv path. 
 
@@ -82,6 +34,57 @@ def get_weak_csv_filename(data_type):
         raise Exception('Incorrect argument!')
 
 
+def read_weak_csv(weak_label_csv_path, data_type):
+    """Read weakly labelled ground truth csv file. There can be multiple labels
+    for each audio clip.
+
+    Args:
+      weak_label_csv_path: str
+      data_type: 'training' | 'testing' | 'evaluation'
+
+    Returns:
+      meta_list: [{'audio_name': 'a.wav', 'labels': ['Train', 'Bus']},
+                  ...]
+    """
+    assert data_type in ['training', 'testing', 'evaluation']
+    
+    if data_type in ['training', 'testing']:
+        with open(weak_label_csv_path, 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            rows = list(reader)
+            
+    elif data_type in ['evaluation']:
+        with open(weak_label_csv_path, 'r') as f:
+            reader = csv.reader(f, delimiter='\t')
+            rows = list(reader)
+            
+    meta_list = []
+            
+    for row in rows:
+        if data_type in ['training', 'testing']:
+            """row: ['-5QrBL6MzLg', '60.000', '70.000', 'Train horn,Train', '/m/0284vy3,/m/07jdr']"""
+            meta = {
+                'audio_name': 'Y' + row[0] + '_' + row[1] + '_' + row[2] + '.wav', 
+                'labels': re.split(',(?! )', row[3])}
+            meta_list.append(meta)
+        
+        elif data_type in ['evaluation']:
+            """row: ['-JMT0mK0Dbg_30.000_40.000.wav', '30.000', '40.000', 'Train horn']"""
+            audio_name = row[0]
+            name_list = [meta['audio_name'][1 :] for meta in meta_list]
+
+            if audio_name in name_list:
+                n = name_list.index(audio_name)
+                meta_list[n]['labels'].append(row[3])
+            else:
+                meta = {
+                    'audio_name': 'Y{}'.format(row[0]), 
+                    'labels': [row[3]]}
+                meta_list.append(meta)
+
+    return meta_list
+
+
 def read_strong_csv(strong_meta_csv_path):
     """Read strongly labelled ground truth csv file. 
     
@@ -89,11 +92,10 @@ def read_strong_csv(strong_meta_csv_path):
       strong_meta_csv_path: str
 
     Returns: 
-      meta_dict: {'a.wav': [{'begin_time': 3.0, 'end_time': 5.0, 'label': 'Bus'}
-                            {'begin_time': 4.0, 'end_time': 7.0, 'label': 'Train'}
-                            ...]
-                  ...
-                 }
+      meta_dict: {'a.wav': [{'onset': 3.0, 'offset': 5.0, 'label': 'Bus'},
+                            {'onset': 4.0, 'offset': 7.0, 'label': 'Train'}
+                            ...],
+                  ...}
     """
     with open(strong_meta_csv_path, 'r') as fr:
         reader = csv.reader(fr, delimiter='\t')
@@ -101,8 +103,9 @@ def read_strong_csv(strong_meta_csv_path):
         
     meta_dict = {}
     for line in lines:
-        [audio_name, begin_time, end_time, label] = line
-        meta = {'begin_time': begin_time, 'end_time': end_time, 'label': label}
+        """line: ['-5QrBL6MzLg_60.000_70.000.wav', '0.917', '2.029', 'Train horn']"""
+        [audio_name, onset, offset, label] = line
+        meta = {'onset': onset, 'offset': offset, 'label': label}
         if audio_name in meta_dict:
             meta_dict[audio_name].append(meta)
         else:
@@ -112,7 +115,7 @@ def read_strong_csv(strong_meta_csv_path):
 
 
 def get_weak_target(labels, lb_to_idx):
-    """Reformat weakly labelled target to vector format. 
+    """Labels to vector. 
 
     Args:
       labels: list of str
@@ -125,7 +128,7 @@ def get_weak_target(labels, lb_to_idx):
     target = np.zeros(classes_num, dtype=np.bool)
     
     for label in labels: 
-        target[lb_to_idx[label]] = True
+        target[lb_to_idx[label]] = 1.
         
     return target 
 
@@ -136,7 +139,11 @@ def get_strong_target(audio_name, strong_meta_dict, frames_num,
 
     Args:
       audio_name: str
-      strong_meta_dict: dict
+      strong_meta_dict: dict, e.g., 
+          {'a.wav': [{'onset': 3.0, 'offset': 5.0, 'label': 'Bus'},
+                     {'onset': 4.0, 'offset': 7.0, 'label': 'Train'}
+                      ...],
+           ...}
       frames_num: int
       frames_per_second: int
       lb_to_idx: dict
@@ -150,14 +157,14 @@ def get_strong_target(audio_name, strong_meta_dict, frames_num,
     target = np.zeros((frames_num, len(lb_to_idx)), dtype=np.bool)
     
     for meta in meta_list:
-        begin_time = float(meta['begin_time']) 
-        begin_frame = int(round(begin_time * frames_per_second))
-        end_time = float(meta['end_time'])
-        end_frame = int(round(end_time * frames_per_second)) + 1
+        onset = float(meta['onset']) 
+        bgn_frame = int(round(onset * frames_per_second))
+        offset = float(meta['offset'])
+        end_frame = int(round(offset * frames_per_second)) + 1
         label = meta['label']
         idx = lb_to_idx[label]
         
-        target[begin_frame : end_frame, idx] = 1
+        target[bgn_frame : end_frame, idx] = 1
     
     return target
 
@@ -179,11 +186,12 @@ def pack_audio_files_to_hdf5(args):
     mini_data = args.mini_data
 
     sample_rate = config.sample_rate
-    audio_length = config.audio_length
+    audio_samples = config.audio_samples
     classes_num = config.classes_num
     lb_to_idx = config.lb_to_idx
     frames_per_second = config.frames_per_second
-    frames_num = frames_per_second * config.audio_duration
+    frames_num = frames_per_second * config.audio_duration + 1
+    """The +1 frame comes from the 'center=True' argument when extracting spectrogram."""
 
     has_strong_target = data_type in ['testing', 'evaluation']
 
@@ -200,15 +208,17 @@ def pack_audio_files_to_hdf5(args):
             'groundtruth_strong_label_evaluation_set.csv')
 
     if mini_data:
-        packed_hdf5_path = os.path.join(workspace, 'features', 
-            'minidata_{}.waveform.h5'.format(data_type))
+        packed_hdf5_path = os.path.join(workspace, 'hdf5s', 
+            'minidata_{}.h5'.format(data_type))
     else:
-        packed_hdf5_path = os.path.join(workspace, 'features', 
-            '{}.waveform.h5'.format(data_type))
+        packed_hdf5_path = os.path.join(workspace, 'hdf5s', 
+            '{}.h5'.format(data_type))
     create_folder(os.path.dirname(packed_hdf5_path))
 
     # Read metadata
     weak_meta_list = read_weak_csv(weak_label_csv_path, data_type)
+    """e.g., [{'audio_name': 'a.wav', 'labels': ['Train', 'Bus']},
+              ...]"""
 
     # Use a small amount of data for debugging
     if mini_data:
@@ -227,16 +237,21 @@ def pack_audio_files_to_hdf5(args):
 
         hf.create_dataset(
             name='waveform', 
-            shape=(audios_num, audio_length), 
-            dtype=np.int32)
+            shape=(audios_num, audio_samples), 
+            dtype=np.int16)
 
         hf.create_dataset(
-            name='weak_target', 
+            name='target', 
             shape=(audios_num, classes_num), 
             dtype=np.float32)
 
         if has_strong_target:
-            strong_meta_dict = read_strong_csv(strong_label_csv_path)        
+            strong_meta_dict = read_strong_csv(strong_label_csv_path)
+            """e.g., {'a.wav': [{'onset': 3.0, 'offset': 5.0, 'label': 'Bus'},
+                                {'onset': 4.0, 'offset': 7.0, 'label': 'Train'}
+                                ...],
+                      ...}
+            """       
             
             hf.create_dataset(
                 name='strong_target', 
@@ -250,11 +265,11 @@ def pack_audio_files_to_hdf5(args):
             audio_name = weak_meta_dict['audio_name']
             audio_path = os.path.join(audios_dir, audio_name)
             (audio, fs) = librosa.core.load(audio_path, sr=sample_rate, mono=True)
-            audio = pad_truncate_sequence(audio, audio_length)
+            audio = pad_truncate_sequence(audio, audio_samples)
 
             hf['audio_name'][n] = audio_name.encode()
             hf['waveform'][n] = float32_to_int16(audio)
-            hf['weak_target'][n] = weak_target = get_weak_target(
+            hf['target'][n] = get_weak_target(
                 weak_meta_dict['labels'], lb_to_idx)
 
             if has_strong_target:

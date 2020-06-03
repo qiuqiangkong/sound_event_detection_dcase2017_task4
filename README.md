@@ -33,21 +33,27 @@ The log mel spectrogram of audio clips looks like:
 
 This codebase is developed with Python3 + PyTorch 1.2.0.
 
+Install requirements:
+
+```
+pip install -r requirements.txt
+```
+
 **1. Run ./runme.sh**
 
 Or execute the commands in runme.sh line by line. The runme.sh includes: 
 
 (1) Modify the paths of dataset and your workspace.
 
-(2) Pack waveform to hdf5 file.
+(2) Pack waveforms and targets to hdf5 file.
 
-(3) Train model.
+(3) Train.
 
 (4) Optimize thresholds for audio tagging and sound event detection.
 
 (5) Calculate metrics with the optimized thresholds. 
 
-When using the Cnn_9layers_FrameAvg system, The training looks like:
+The training looks like:
 
 <pre>
 Using GPU.
@@ -89,14 +95,17 @@ Model saved to /vol/vssp/msos/qk/workspaces/transfer_to_other_datasets/transfer_
 
 </pre>
 
-## Result
+## Results
 The following figure shows the audio tagging and sound event detection mean average precision (mAP) and error rate (ER).
 
-![alt text](appendixes/metrics.png)
+![alt text](appendixes/clipwise_at_sed_evaluate.png)
+
+The class-wise performance of Cnn_9layers_Gru_FrameAtt looks like:
+
+![alt text](appendixes/best_model_17_classes_evaluate.png)
 
 
-## Summary
-This codebase is the implementation of our work [1].
+The automatic threshold optimization part has been packed to a Python package, and can be easily installed by **pip install autoth**. See https://github.com/qiuqiangkong/autoth for details.
 
 ## Cite
 [1] Kong, Qiuqiang, Yong Xu, Wenwu Wang, and Mark D. Plumbley. "Sound Event Detection of Weakly Labelled Data with CNN-Transformer and Automatic Threshold Optimization." arXiv preprint arXiv:1912.04761 (2019).

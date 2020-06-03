@@ -1,7 +1,10 @@
 sample_rate = 32000
 audio_duration = 10     # Audio clips have durations of 10 seconds
-audio_length = sample_rate * audio_duration
+audio_samples = sample_rate * audio_duration
 
+# Hyper-parameters follow [1] Kong, Q., Cao, Y., Iqbal, T., Wang, 
+# Y., Wang, W. and Plumbley, M. D., 2019. PANNs: Large-Scale Pretrained Audio 
+# Neural Networks for Audio Pattern Recognition. arXiv preprint arXiv:1912.10211.
 mel_bins = 64
 fmin = 50
 fmax = 14000

@@ -4,7 +4,7 @@ import librosa
 import logging
 import matplotlib.pyplot as plt
 import datetime
-import _pickle as cPickle
+import pickle
 import numpy as np
 import csv
 import sed_eval
@@ -139,28 +139,6 @@ def write_submission(event_list, submission_path):
     logging.info('    Write submission file to {}'.format(submission_path))
 
 
-def write_out_prediction(predictions, prediction_path):
-    """Write out clipwise and framewise prediction in tensor format. 
-
-    Args:
-      predictions: {'clipwise_output': (N, classes_num), 
-                    'framewise_output': (N, frames_num, classes_num)}
-      prediction_path: str
-    """
-    with h5py.File(prediction_path, 'w') as hf:
-        for key in predictions.keys():
-            hf.create_dataset(name=key, data=predictions[key], dtype=np.float32)
-
-
-def load_prediction(prediction_path):
-    """Load clipwise and framewise predictions.
-    """
-    with h5py.File(prediction_path, 'r') as hf:
-        clipwise_output = hf['clipwise_output'][:]
-        framewise_output = hf['framewise_output'][:]
-    return clipwise_output, framewise_output
-
-
 def official_evaluate(reference_csv_path, prediction_csv_path):
     """Evaluate metrics with official SED toolbox. 
 
@@ -168,8 +146,13 @@ def official_evaluate(reference_csv_path, prediction_csv_path):
       reference_csv_path: str
       prediction_csv_path: str
     """
-    reference_event_list = sed_eval.io.load_event_list(reference_csv_path, delimiter='\t', csv_header=False, fields=['filename','onset','offset','event_label'])
-    estimated_event_list = sed_eval.io.load_event_list(prediction_csv_path, delimiter='\t', csv_header=False, fields=['filename','onset','offset','event_label'])
+    reference_event_list = sed_eval.io.load_event_list(reference_csv_path, 
+        delimiter='\t', csv_header=False, 
+        fields=['filename','onset','offset','event_label'])
+
+    estimated_event_list = sed_eval.io.load_event_list(prediction_csv_path, 
+        delimiter='\t', csv_header=False, 
+        fields=['filename','onset','offset','event_label'])
     
     evaluated_event_labels = reference_event_list.unique_event_labels
     files={}
@@ -206,7 +189,7 @@ class StatisticsContainer(object):
     def __init__(self, statistics_path):
         self.statistics_path = statistics_path
 
-        self.backup_statistics_path = '{}_{}.pickle'.format(
+        self.backup_statistics_path = '{}_{}.pkl'.format(
             os.path.splitext(self.statistics_path)[0], datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
         self.statistics_dict = {'train': [], 'test': [], 'evaluate': []}
@@ -216,13 +199,13 @@ class StatisticsContainer(object):
         self.statistics_dict[data_type].append(statistics)
         
     def dump(self):
-        cPickle.dump(self.statistics_dict, open(self.statistics_path, 'wb'))
-        cPickle.dump(self.statistics_dict, open(self.backup_statistics_path, 'wb'))
+        pickle.dump(self.statistics_dict, open(self.statistics_path, 'wb'))
+        pickle.dump(self.statistics_dict, open(self.backup_statistics_path, 'wb'))
         logging.info('    Dump statistics to {}'.format(self.statistics_path))
         logging.info('    Dump statistics to {}'.format(self.backup_statistics_path))
 
     def load_state_dict(self, resume_iteration):
-        self.statistics_dict = cPickle.load(open(self.statistics_path, 'rb'))
+        self.statistics_dict = pickle.load(open(self.statistics_path, 'rb'))
 
         resume_statistics_dict = {'train': [], 'test': [], 'evaluate': []}
         
@@ -236,16 +219,24 @@ class StatisticsContainer(object):
 
 class Mixup(object):
     def __init__(self, mixup_alpha, random_seed=1234):
+        """Mixup coefficient generator.
+        """
         self.mixup_alpha = mixup_alpha
         self.random_state = np.random.RandomState(random_seed)
 
     def get_lambda(self, batch_size):
+        """Get mixup random coefficients.
+
+        Args:
+          batch_size: int
+
+        Returns:
+          mixup_lambdas: (batch_size,)
+        """
         mixup_lambdas = []
-        for n in range(1, batch_size, 2):
+        for n in range(0, batch_size, 2):
             lam = self.random_state.beta(self.mixup_alpha, self.mixup_alpha, 1)[0]
             mixup_lambdas.append(lam)
             mixup_lambdas.append(1. - lam)
 
         return np.array(mixup_lambdas)
-
-

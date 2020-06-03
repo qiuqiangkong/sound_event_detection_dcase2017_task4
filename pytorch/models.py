@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from stft import Spectrogram, LogmelFilterBank
-from augmentation import SpecAugmentation
+from torchlibrosa.stft import Spectrogram, LogmelFilterBank
+from torchlibrosa.augmentation import SpecAugmentation
 from pytorch_utils import do_mixup
 
 

@@ -22,7 +22,7 @@ def append_to_dict(dict, key, value):
         dict[key] = [value]
 
 
-def forward(model, generator, return_input=False, return_target=False):
+def forward(model, data_loader, return_input=False, return_target=False):
     """Forward data to model.
 
     Args:
@@ -43,8 +43,8 @@ def forward(model, generator, return_input=False, return_target=False):
     output_dict = {}
     
     # Evaluate on mini-batch
-    for n, batch_data_dict in enumerate(generator):
-
+    for n, batch_data_dict in enumerate(data_loader):
+        
         # Predict
         batch_waveform = move_data_to_device(batch_data_dict['waveform'], device)
         
@@ -78,18 +78,16 @@ def forward(model, generator, return_input=False, return_target=False):
 
 
 def do_mixup(x, mixup_lambda):
-    """Mixup.
+    """Mixup data.
 
     Args:
-      x: tensor
-      mixup_lambda: vector
+      x: (N, ...)
+      mixup_lambda: (N,)
 
     Return:
-      tensor
+      out: (N, ...)
     """
-    if x.shape[0] % 2 == 1:
-        x = x[0 : x.shape[0] - 1]
-    
-    out = x[0::2].transpose(0, -1) * mixup_lambda[0::2] + \
-        x[1::2].transpose(0, -1) * mixup_lambda[1::2]
-    return out.transpose(0, -1)
+    output = x[0 :: 2].transpose(0, -1) * mixup_lambda[0 :: 2] + \
+        x[1 :: 2].transpose(0, -1) * mixup_lambda[1 :: 2]
+    output = output.transpose(0, -1)
+    return output
